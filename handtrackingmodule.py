@@ -14,26 +14,41 @@ class handDetector():
         self.hands = self.mpHands.Hands(self.mode, self.maxHands, self.modelComp, self.detectionConfidence, self.trackConfidence)
         self.mpDraw = mp.solutions.drawing_utils
         
-        
+    # Find the hands in the image and returns the image with the landmarks drawn
     def findHands(self, img, draw=True):
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # Convert image to RGB
-        results = self.hands.process(imgRGB) # Process the image
+        self.results = self.hands.process(imgRGB) # Process the image
         
         # Check if there are any hands detected
-        if results.multi_hand_landmarks: 
+        if self.results.multi_hand_landmarks: 
             # For each hand detected, draw the landmarks
-            for handLms in results.multi_hand_landmarks:
+            for handLms in self.results.multi_hand_landmarks:
                 if draw: 
                     self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
                 
-                #for id, lm in enumerate(handLms.landmark):
-                #    h, w, c = img.shape
-                #    cx, cy = int(lm.x * w), int(lm.y * h)
-                #    print(id, cx, cy)
-                
         return img
-                        
+            
+            
+    #Finds the position of the landmarks on a hand, returns a list of the landmarks with their x and y coordinates
+    def findPosition(self, img, handNo=0, draw=True):
+        lmList = []
         
+        # Check if there are any hands detected
+        if self.results.multi_hand_landmarks:
+            myHand = self.results.multi_hand_landmarks[handNo]
+            
+            for id, lm in enumerate(myHand.landmark):
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                lmList.append([id, cx, cy])
+                
+                if draw:
+                    cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)
+        
+        return lmList
+    
+    
+# Capture the video feed from the webcam and display the landmarks         
 def capture():
     ptime = 0 
     ctime = 0
@@ -42,14 +57,19 @@ def capture():
     
     while True:
         success, img = cap.read()  
-        img = detector.findHands(img, success)
+        
+        if not success: 
+            print("Ignoring empty camera frame.")
+            continue
+        
+        img = detector.findHands(img)
+        img = cv2.flip(img, 1)
         
         cTime = time.time()
         fps = 1 / (cTime - ptime)
         ptime = cTime
         
         cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 3)
-        
         cv2.imshow("Image", img)
         
         # Quit loop when esc key is pressed
